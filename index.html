@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CARVE: Skill-Preserving Continual Merging of VLA Experts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── DESIGN TOKENS ── */
+    :root {
+      /* sky-blue palette (tone-downed) */
+      --sky:        #5b9bd5;   /* main accent */
+      --sky-d:      #3a7bbf;   /* hover / dark */
+      --sky-l:      #e8f2fb;   /* light tint */
+      --sky-ll:     #f3f8fd;   /* very light bg */
+      --sky-m:      #b8d6f0;   /* border tint */
+      --sky-b:      #2563a8;   /* bold accent */
+
+      --white:      #ffffff;
+      --bg:         #f5f7fa;
+      --bg2:        #edf2f7;
+      --border:     #dde4ee;
+      --border2:    #c8d4e4;
+
+      --text:       #1a2332;
+      --text-b:     #2d3f55;
+      --text-m:     #4a5f78;
+      --text-s:     #7a90a8;
+      --text-x:     #a8bac8;
+
+      --green:      #2e7d5a;
+      --green-l:    #eaf5ef;
+      --red:        #b03a3a;
+      --red-l:      #fdf0f0;
+      --amber:      #92600a;
+
+      --sh:    0 1px 4px rgba(91,155,213,.1),0 1px 2px rgba(0,0,0,.05);
+      --sh-m:  0 4px 18px rgba(91,155,213,.12),0 2px 8px rgba(0,0,0,.06);
+      --sh-l:  0 10px 40px rgba(91,155,213,.15),0 4px 14px rgba(0,0,0,.07);
+      --r: 10px;
+    }
+
+    /* ── RESET ── */
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{
+      background:var(--bg);
+      color:var(--text);
+      font-family:'Source Sans 3',sans-serif;
+      font-size:16px;
+      line-height:1.75;
+      overflow-x:hidden;
+    }
+
+    /* ── NAV ── */
+    nav{
+      position:sticky;top:0;z-index:300;
+      background:rgba(255,255,255,.95);
+      backdrop-filter:blur(14px);
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 44px;height:52px;
+    }
+    .nav-logo{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;font-size:1.1rem;
+      color:var(--sky-b);letter-spacing:.04em;
+    }
+    .nav-links{display:flex;gap:4px;list-style:none;}
+    .nav-links a{
+      font-size:.82rem;font-weight:600;
+      color:var(--text-m);text-decoration:none;
+      padding:5px 12px;border-radius:6px;
+      transition:background .14s,color .14s;
+    }
+    .nav-links a:hover{background:var(--sky-l);color:var(--sky-b);}
+
+    /* ── HERO ── */
+    .hero{
+      background:var(--white);
+      border-bottom:2px solid var(--sky-m);
+      padding:64px 24px 52px;
+      text-align:center;
+    }
+    .venue-pill{
+      display:inline-flex;align-items:center;gap:7px;
+      background:var(--sky-l);color:var(--sky-b);
+      border:1px solid var(--sky-m);
+      font-size:.72rem;font-weight:700;letter-spacing:.1em;
+      padding:5px 16px;border-radius:100px;margin-bottom:24px;
+    }
+    .venue-pill::before{
+      content:'';width:7px;height:7px;
+      background:var(--sky);border-radius:50%;
+      animation:blink 1.8s ease-in-out infinite;
+    }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+    .hero h1{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;
+      font-size:clamp(1.9rem,4vw,3.0rem);
+      line-height:1.15;
+      letter-spacing:-.01em;
+      max-width:860px;margin:0 auto;
+      color:var(--text);
+    }
+    .hero h1 .c1{color:var(--sky-b);}
+    .hero h1 .c2{color:var(--sky);}
+
+    .hero-acronym{
+      display:inline-block;
+      font-family:'Source Serif 4',serif;
+      font-weight:600;font-size:1.05rem;
+      color:var(--text-m);margin-top:14px;
+    }
+    .authors{
+      margin-top:22px;
+      font-size:.92rem;color:var(--text-m);line-height:2;
+    }
+    .affil{font-size:.76rem;color:var(--text-x);margin-top:3px;}
+
+    .btn-row{
+      display:flex;flex-wrap:wrap;gap:10px;
+      justify-content:center;margin-top:26px;
+    }
+    .btn{
+      display:inline-flex;align-items:center;gap:7px;
+      font-family:'Source Sans 3',sans-serif;
+      font-size:.86rem;font-weight:700;
+      padding:9px 22px;border-radius:8px;
+      text-decoration:none;border:none;cursor:pointer;
+      transition:all .17s;
+    }
+    .btn-p{
+      background:var(--sky-b);color:#fff;
+      box-shadow:0 2px 8px rgba(37,99,168,.3);
+    }
+    .btn-p:hover{background:var(--sky-d);transform:translateY(-1px);box-shadow:0 4px 16px rgba(37,99,168,.38);}
+    .btn-o{
+      background:var(--white);color:var(--text-b);
+      border:1.5px solid var(--border2);
+    }
+    .btn-o:hover{border-color:var(--sky);color:var(--sky-b);transform:translateY(-1px);}
+
+    /* stat strip */
+    .stat-strip{
+      display:grid;grid-template-columns:repeat(4,1fr);
+      gap:1px;background:var(--sky-m);
+      border-radius:12px;overflow:hidden;
+      max-width:780px;margin:42px auto 0;
+      border:1px solid var(--sky-m);
+      box-shadow:var(--sh);
+    }
+    .sc{background:var(--white);padding:18px 12px;text-align:center;}
+    .sc-num{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;font-size:2rem;color:var(--sky-b);
+    }
+    .sc-num.gr{color:var(--green);}
+    .sc-lbl{font-size:.71rem;color:var(--text-s);margin-top:3px;line-height:1.35;}
+
+    /* ── SECTION LAYOUT ── */
+    .sec{max-width:960px;margin:0 auto;padding:72px 24px;}
+    .sec-w{max-width:1080px;margin:0 auto;padding:72px 24px;}
+    .sec-tag{
+      display:inline-block;
+      font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--sky-b);
+      border-left:3px solid var(--sky);
+      padding-left:10px;
+      margin-bottom:12px;
+    }
+    .sec-h{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;
+      font-size:clamp(1.5rem,2.8vw,2.1rem);
+      line-height:1.2;color:var(--text);
+    }
+    .sec-lead{
+      color:var(--text-m);
+      max-width:680px;margin-top:10px;
+      font-size:.97rem;line-height:1.75;
+    }
+    .divider{height:1px;background:var(--border);}
+
+    /* ── TEASER VIDEO ── */
+    .teaser-wrap{
+      background:#1a2a3f;
+      padding:54px 24px;
+      border-top:3px solid var(--sky);
+      border-bottom:3px solid var(--sky);
+    }
+    .teaser-inner{max-width:860px;margin:0 auto;}
+    .t-label{
+      display:inline-block;
+      font-size:.67rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+      color:#7dd3fc;border:1px solid #1e3a5a;
+      background:rgba(125,211,252,.08);
+      padding:4px 12px;border-radius:100px;margin-bottom:12px;
+    }
+    .t-title{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;font-size:clamp(1.3rem,2.4vw,1.85rem);
+      color:#f0f6fc;margin-bottom:22px;
+    }
+    .t-frame{
+      background:#162032;
+      border:1px solid #2d4a6a;
+      border-radius:12px;overflow:hidden;
+      box-shadow:0 16px 52px rgba(0,0,0,.45);
+    }
+    .t-bar{
+      display:flex;align-items:center;gap:7px;
+      padding:11px 16px;background:#0f1f30;
+      border-bottom:1px solid #2d4a6a;
+    }
+    .td{width:10px;height:10px;border-radius:50%;}
+    .td-r{background:#f87171;}.td-y{background:#fbbf24;}.td-g{background:#34d399;}
+    .t-fname{font-size:.73rem;color:#7a9ab8;margin-left:6px;font-family:monospace;}
+    .t-badge{
+      margin-left:auto;font-size:.63rem;font-family:monospace;
+      background:rgba(91,155,213,.15);color:#7dd3fc;
+      border:1px solid rgba(91,155,213,.3);padding:2px 9px;border-radius:4px;
+    }
+    .t-screen{
+      width:100%;aspect-ratio:16/9;
+      background:#0b1828;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:14px;position:relative;overflow:hidden;
+    }
+    .t-screen video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+    .play-lg{
+      width:68px;height:68px;border-radius:50%;
+      background:rgba(91,155,213,.18);
+      border:2px solid rgba(91,155,213,.5);
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.7rem;color:#93c5fd;cursor:pointer;
+      transition:all .2s;
+    }
+    .play-lg:hover{background:rgba(91,155,213,.32);transform:scale(1.07);}
+    .t-hint{font-size:.72rem;color:#2d4a6a;font-family:monospace;}
+    .t-caption{
+      text-align:center;font-size:.83rem;
+      color:#5a7a96;margin-top:13px;
+    }
+
+    /* ── ABSTRACT LAYOUT ── */
+    .abs-layout{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:28px;
+      margin-top:30px;
+      align-items:start;
+    }
+    .abs-text{
+      font-size:.97rem;color:var(--text-m);line-height:1.82;
+    }
+    .abs-text strong{color:var(--text);}
+    .abs-hl{
+      background:var(--sky-l);color:var(--sky-b);
+      padding:1px 5px;border-radius:4px;font-weight:700;
+    }
+
+    /* ── IMAGE PLACEHOLDER ── */
+    /* used everywhere we drop real paper figures */
+    .img-slot{
+      background:var(--white);
+      border:1.5px dashed var(--sky-m);
+      border-radius:var(--r);
+      overflow:hidden;
+      box-shadow:var(--sh);
+      position:relative;
+    }
+    .img-slot img{
+      width:100%;height:100%;
+      object-fit:contain;
+      display:block;
+    }
+    .img-slot-label{
+      position:absolute;top:8px;left:10px;
+      font-size:.65rem;font-weight:700;letter-spacing:.09em;
+      color:var(--sky-b);background:var(--sky-l);
+      border:1px solid var(--sky-m);
+      padding:2px 8px;border-radius:4px;
+      pointer-events:none;
+    }
+    /* two stacked images for abstract */
+    .abs-figs{
+      display:flex;flex-direction:column;gap:12px;
+    }
+    .abs-fig1{aspect-ratio:16/7;}   /* stream figure */
+    .abs-fig2{aspect-ratio:16/7;}   /* charts figure */
+
+    /* ── METHOD ── */
+    .method-card{
+      margin-top:30px;
+      background:var(--white);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      overflow:hidden;
+      box-shadow:var(--sh-m);
+    }
+    /* A–D column labels */
+    .method-steps{
+      display:grid;grid-template-columns:repeat(4,1fr);
+      border-bottom:2px solid var(--sky-m);
+      background:var(--sky-ll);
+    }
+    .ms{
+      padding:18px 16px;
+      border-right:1px solid var(--sky-m);
+    }
+    .ms:last-child{border-right:none;}
+    .ms-tag{
+      font-size:.63rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--sky-b);margin-bottom:5px;
+    }
+    .ms-title{
+      font-family:'Source Serif 4',serif;
+      font-size:.9rem;font-weight:700;margin-bottom:5px;color:var(--text);
+    }
+    .ms-desc{font-size:.78rem;color:var(--text-m);line-height:1.6;}
+
+    /* method figure + description layout */
+    .method-body{
+      display:grid;grid-template-columns:1.45fr 1fr;
+    }
+    .method-fig{
+      /* actual paper figure 3 */
+      border-right:1px solid var(--border);
+    }
+    .method-fig .img-slot{
+      border-radius:0;border:none;
+      box-shadow:none;
+      aspect-ratio:16/9;
+      background:var(--bg);
+    }
+    .method-desc{
+      padding:28px 26px;
+      display:flex;flex-direction:column;gap:14px;
+    }
+    .md-block{}
+    .md-label{
+      font-size:.73rem;font-weight:700;letter-spacing:.07em;
+      text-transform:uppercase;color:var(--sky-b);margin-bottom:4px;
+    }
+    .md-text{font-size:.86rem;color:var(--text-m);line-height:1.65;}
+
+    /* storage bar at bottom */
+    .method-storage{
+      display:grid;grid-template-columns:repeat(3,1fr);
+      border-top:1px solid var(--border);
+      background:var(--bg);
+    }
+    .mst{
+      padding:14px 18px;border-right:1px solid var(--border);
+      text-align:center;
+    }
+    .mst:last-child{border-right:none;}
+    .mst.hi{background:var(--sky-l);}
+    .mst-name{font-family:'Source Serif 4',serif;font-weight:700;font-size:.86rem;color:var(--text-b);}
+    .mst.hi .mst-name{color:var(--sky-b);}
+    .mst-cplx{font-size:.75rem;font-family:monospace;color:var(--text-m);margin-top:3px;}
+    .mst-note{font-size:.69rem;color:var(--text-s);margin-top:3px;}
+
+    /* ── RESULTS ── */
+    /* summary cards */
+    .bb-row{
+      display:grid;grid-template-columns:repeat(3,1fr);
+      gap:12px;margin-top:28px;
+    }
+    .bb{
+      background:var(--white);border:1.5px solid var(--border);
+      border-radius:var(--r);padding:20px 16px;text-align:center;
+      box-shadow:var(--sh);
+      transition:border-color .17s,box-shadow .17s;
+    }
+    .bb:hover{border-color:var(--sky);box-shadow:var(--sh-m);}
+    .bb-name{font-family:'Source Serif 4',serif;font-weight:700;font-size:.95rem;margin-bottom:14px;}
+    .bb-sr{font-family:'Source Serif 4',serif;font-weight:700;font-size:1.9rem;color:var(--sky-b);}
+    .bb-sr span{font-size:.85rem;font-weight:400;color:var(--text-s);}
+    .bb-sub{font-size:.69rem;color:var(--text-x);}
+    .bb-vs{font-size:.79rem;color:var(--text-s);margin:8px 0 2px;}
+    .bb-exp{font-size:1.05rem;font-weight:600;color:var(--text-m);}
+    .bb-pill{
+      display:inline-block;margin-top:11px;
+      font-size:.67rem;font-weight:700;
+      padding:3px 10px;border-radius:100px;
+      background:var(--green-l);color:var(--green);border:1px solid #a7f3d0;
+    }
+
+    /* result images grid */
+    .results-figs{
+      margin-top:28px;
+      display:flex;flex-direction:column;gap:18px;
+    }
+    /* Table 2 image — full width */
+    .fig-full .img-slot{aspect-ratio:16/5;width:100%;}
+    /* Figure 3 image — full width */
+    .fig-full2 .img-slot{aspect-ratio:16/6;width:100%;}
+    /* Table 3 + Figure 4 side by side */
+    .fig-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .fig-row .img-slot{aspect-ratio:4/3;}
+
+    /* ── BASELINE COMPARISON ── */
+    /* 2×2 grid, each cell has 3 method columns */
+    .comp-section{
+      background:var(--white);
+      border-top:1px solid var(--border);
+      border-bottom:1px solid var(--border);
+      padding:68px 24px;
+    }
+    .comp-inner{max-width:1060px;margin:0 auto;}
+    .suite-grid{
+      display:grid;grid-template-columns:1fr 1fr;
+      gap:30px;margin-top:32px;
+    }
+    .suite-title{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;font-size:.97rem;
+      text-align:center;margin-bottom:12px;color:var(--text);
+    }
+    .method-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+    .col-label{
+      font-size:.77rem;font-weight:700;text-align:center;
+      margin-bottom:6px;color:var(--text-m);
+    }
+    .col-label.ours{color:var(--green);font-weight:700;}
+    .vid-frame{
+      border-radius:8px;overflow:hidden;
+      border:2px solid var(--border);
+      aspect-ratio:4/3;
+      background:var(--bg2);
+      display:flex;align-items:center;justify-content:center;
+      position:relative;transition:border-color .17s;
+    }
+    .vid-frame.ours-f{
+      border:3px solid var(--green);
+      box-shadow:0 0 0 2px rgba(46,125,90,.15);
+    }
+    .vid-frame video,.vid-frame img{
+      width:100%;height:100%;object-fit:cover;
+      position:absolute;inset:0;
+    }
+    .vf-ph{
+      display:flex;flex-direction:column;
+      align-items:center;gap:5px;color:var(--border2);
+    }
+    .play-xs{
+      width:28px;height:28px;border-radius:50%;
+      background:rgba(91,155,213,.1);
+      border:1.5px solid rgba(91,155,213,.3);
+      display:flex;align-items:center;justify-content:center;
+      font-size:.7rem;color:var(--sky);
+    }
+    .vf-fname{font-size:.6rem;font-family:monospace;color:var(--text-x);}
+    .result-tag{
+      text-align:center;
+      font-size:.65rem;font-weight:700;
+      padding:3px 0;border-radius:4px;
+      margin-top:5px;
+    }
+    .rt-fail{background:var(--red-l);color:var(--red);}
+    .rt-ok{background:var(--green-l);color:var(--green);}
+    .task-cap{
+      font-size:.81rem;color:var(--text-m);
+      text-align:center;margin-top:10px;
+      font-style:italic;line-height:1.45;
+    }
+
+    /* ── BENCHMARK VIDEOS ── */
+    .bench-grid{
+      display:grid;grid-template-columns:repeat(2,1fr);
+      gap:16px;margin-top:30px;
+    }
+    .bench-card{
+      background:var(--white);border:1.5px solid var(--border);
+      border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);
+      transition:border-color .17s,box-shadow .17s;
+    }
+    .bench-card:hover{border-color:var(--sky);box-shadow:var(--sh-m);}
+    .bench-screen{
+      aspect-ratio:16/9;background:var(--bg2);
+      display:flex;align-items:center;justify-content:center;
+      position:relative;overflow:hidden;
+    }
+    .bench-screen video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+    .bench-ph{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--border2);}
+    .play-m{
+      width:44px;height:44px;border-radius:50%;
+      background:rgba(91,155,213,.1);
+      border:2px solid rgba(91,155,213,.3);
+      display:flex;align-items:center;justify-content:center;
+      font-size:1rem;color:var(--sky);cursor:pointer;
+      transition:all .18s;
+    }
+    .play-m:hover{background:rgba(91,155,213,.22);transform:scale(1.07);}
+    .bench-info{padding:14px 16px;}
+    .bench-suite{
+      font-size:.63rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--sky-b);margin-bottom:3px;
+    }
+    .bench-task{font-size:.84rem;font-weight:600;color:var(--text);line-height:1.35;margin-bottom:6px;}
+    .bench-tags{display:flex;gap:7px;flex-wrap:wrap;}
+    .bench-tag{
+      font-size:.68rem;font-weight:700;font-family:monospace;
+      padding:2px 8px;border-radius:4px;
+    }
+    .bt-green{background:var(--green-l);color:var(--green);border:1px solid #a7f3d0;}
+    .bt-sky{background:var(--sky-l);color:var(--sky-b);border:1px solid var(--sky-m);}
+
+    /* ── CITATION ── */
+    .bib{
+      margin-top:24px;background:var(--white);
+      border:1px solid var(--border);border-radius:var(--r);
+      overflow:hidden;box-shadow:var(--sh);
+    }
+    .bib-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 16px;background:var(--sky-ll);
+      border-bottom:1px solid var(--border);
+    }
+    .bib-head span{font-size:.72rem;font-weight:700;color:var(--text-s);font-family:monospace;}
+    .copy-btn{
+      font-size:.69rem;font-weight:700;font-family:monospace;
+      padding:3px 11px;border:1px solid var(--border2);
+      border-radius:5px;background:var(--white);
+      color:var(--sky-b);cursor:pointer;transition:all .14s;
+    }
+    .copy-btn:hover{background:var(--sky-l);border-color:var(--sky);}
+    .bib pre{
+      padding:20px 18px;
+      font-family:monospace;font-size:.78rem;
+      color:var(--text-m);line-height:1.8;overflow-x:auto;
+    }
+    .rel-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;}
+    .rel-a{
+      background:var(--white);border:1.5px solid var(--border);
+      border-radius:8px;padding:12px 14px;text-decoration:none;display:block;
+      transition:border-color .16s,box-shadow .16s;
+    }
+    .rel-a:hover{border-color:var(--sky);box-shadow:var(--sh-m);}
+    .rel-v{font-size:.62rem;font-weight:700;color:var(--sky-b);margin-bottom:3px;}
+    .rel-t{font-size:.82rem;font-weight:600;color:var(--text);line-height:1.35;}
+    .rel-au{font-size:.72rem;color:var(--text-s);margin-top:2px;}
+
+    /* ── FOOTER ── */
+    footer{
+      background:var(--white);border-top:2px solid var(--sky-m);
+      padding:30px 24px;text-align:center;
+      font-size:.78rem;color:var(--text-x);
+    }
+    .foot-logo{
+      font-family:'Source Serif 4',serif;
+      font-weight:700;color:var(--sky-b);
+      font-size:.96rem;margin-bottom:7px;
+    }
+    footer a{color:var(--text-s);}
+
+    /* ── REVEAL ── */
+    .rv{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease;}
+    .rv.in{opacity:1;transform:none;}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:768px){
+      nav{padding:0 14px;}.nav-links{display:none;}
+      .abs-layout{grid-template-columns:1fr;}
+      .method-body{grid-template-columns:1fr;}
+      .method-fig{border-right:none;border-bottom:1px solid var(--border);}
+      .method-storage,.bb-row{grid-template-columns:1fr;}
+      .method-steps{grid-template-columns:1fr 1fr;}
+      .suite-grid,.bench-grid,.rel-grid,.fig-row{grid-template-columns:1fr;}
+      .stat-strip{grid-template-columns:1fr 1fr;}
+    }
+    .img-shadow {
+      border-radius: var(--r);
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,.10), 0 1px 6px rgba(0,0,0,.07);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <span class="nav-logo">CARVE</span>
+  <ul class="nav-links">
+    <li><a href="#teaser">Demo</a></li>
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#method">Method</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#comparison">Comparison</a></li>
+    <li><a href="#benchmark">Videos</a></li>
+    <li><a href="#citation">Citation</a></li>
+  </ul>
+</nav>
+
+<!-- ─── HERO ─── -->
+<header class="hero">
+  <div class="venue-pill">NeurIPS 2026 &nbsp;·&nbsp; Anonymous Submission</div>
+
+  <h1>
+    <span class="c1">Skill-Preserving Continual Merging </span> <br/>
+    of Vision-Language-Action Experts
+  </h1>
+  <div class="hero-acronym">
+    CARVE: <em>C</em>ontinual <em>A</em>daptive <em>R</em>esidual-preserving <em>V</em>LA <em>E</em>xpert merging
+  </div>
+
+  <div class="authors">
+    Anonymous Author(s)
+  </div>
+
+  <div class="btn-row">
+    <a href="#" class="btn btn-p">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14,2 14,8 20,8"/>
+      </svg>
+      Paper (arXiv)
+    </a>
+    <a href="#" class="btn btn-o">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+      </svg>
+      Code (GitHub)
+    </a>
+    <a href="#comparison" class="btn btn-o">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <polygon points="5,3 19,12 5,21"/>
+      </svg>
+      Qualitative Results ↓
+    </a>
+  </div>
+
+  <div class="stat-strip rv">
+    <div class="sc">
+      <div class="sc-num">95.6<span style="font-size:.9rem">%</span></div>
+      <div class="sc-lbl">Expert bank recovery<br/>(OpenVLA)</div>
+    </div>
+    <div class="sc">
+      <div class="sc-num gr">51<span style="font-size:.9rem">%</span></div>
+      <div class="sc-lbl">Storage vs.<br/>full expert bank</div>
+    </div>
+    <div class="sc">
+      <div class="sc-num" style="color:var(--amber);">+2.4</div>
+      <div class="sc-lbl">BWT — positive<br/>backward transfer</div>
+    </div>
+    <div class="sc">
+      <div class="sc-num">96.3<span style="font-size:.9rem">%</span></div>
+      <div class="sc-lbl">Avg. SR on<br/>MergeVLA experts</div>
+    </div>
+  </div>
+</header>
+
+<!-- ─── TEASER VIDEO ───
+<section id="teaser" class="teaser-wrap">
+  <div class="teaser-inner">
+    <div style="text-align:center;margin-bottom:8px;">
+      <span class="t-label">Overview Video</span>
+    </div>
+    <div class="t-title" style="text-align:center;">CARVE: Continual Expert Merging without Forgetting</div>
+    <div class="t-frame">
+      <div class="t-bar">
+        <div class="td td-r"></div>
+        <div class="td td-y"></div>
+        <div class="td td-g"></div>
+        <span class="t-fname">carve_overview_teaser.mp4</span>
+        <span class="t-badge">● TEASER</span>
+      </div>
+      <div class="t-screen"> -->
+        <!-- ★ 실제 영상으로 교체:
+             <video autoplay loop muted playsinline src="static/videos/teaser.mp4"></video> -->
+        <!-- <div class="play-lg">▶</div>
+        <span style="font-size:.8rem;color:#2d4a6a;">Overview teaser video</span>
+        <span class="t-hint">src="static/videos/teaser.mp4"</span>
+      </div>
+    </div>
+    <p class="t-caption">
+      CARVE maintains a compact merge state — a shared global core plus skill-local spectral residuals —
+      enabling continual VLA expert admission without retaining full checkpoints or revisiting past robot data.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div> -->
+
+<!-- ─── ABSTRACT ─── -->
+<!-- ─── ABSTRACT ─── -->
+<section id="abstract">
+  <div class="sec">
+    <div class="sec-tag">Overview</div>
+    <h2 class="sec-h">Abstract</h2>
+
+    <!-- 이미지 2개: 가로 나란히 -->
+    <div class="rv" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px;">
+        <div class="img-shadow">
+          <img
+            src="static/images/fig1a_stream.png"
+            alt="Stream of task-specific VLA experts"
+            style="display:block;width:100%;height:auto;"
+          />
+        </div>
+      <div class="img-shadow">
+        <img
+          src="static/images/fig1bc_charts.png"
+          alt="Forgetting in baselines and storage-performance trade-off"
+          style="display:block;width:100%;height:auto;"
+        />
+      </div>
+    </div>
+
+    <!-- 초록 본문 -->
+    <div class="abs-text rv" style="margin-top:28px;">
+      <strong>Vision-Language-Action (VLA) policies</strong> are increasingly adapted into task-specific
+      experts as robots encounter new tasks, objects, and environments after deployment.
+      Integrating these experts post hoc is challenging: retaining all checkpoints is storage-intensive,
+      retraining a unified policy requires data access, and single compact merges can
+      <span class="abs-hl">destroy specialized action behavior</span>.
+      <br/><br/>
+      We study <strong>continual post-hoc VLA expert merging</strong>, where experts arrive sequentially
+      and must be admitted without access to past robot data, joint retraining, or architecture redesign.
+      We propose <strong>CARVE</strong>, which maintains a skill-preserving merge state consisting of
+      an evolving global core and compact skill-local spectral residuals.
+      <br/><br/>
+      Concordant update directions are accumulated into the shared core, while conflicting or
+      skill-specific directions are preserved as low-rank residuals.
+      On OpenVLA experts, CARVE achieves <span class="abs-hl">73.1% average success rate</span>,
+      recovering <span class="abs-hl">95.6% of the full expert bank performance</span>
+      with only <span class="abs-hl">51% of its storage</span>.
+      On MergeVLA experts, CARVE nearly matches the full expert bank
+      (96.3% vs. 96.7%) using only 46% of storage.
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── METHOD ─── -->
+<section id="method">
+  <div class="sec">
+    <div class="sec-tag">Technical Approach</div>
+    <h2 class="sec-h">Method: CARVE</h2>
+    <p class="sec-lead">
+      CARVE separates what can be safely shared across the expert stream from what should remain skill-local,
+      enabling storage-efficient continual admission without joint retraining or full checkpoint retention.
+    </p>
+
+    <div class="method-card rv">
+      <!-- A–D step headers -->
+      <div class="method-steps">
+        <div class="ms">
+          <div class="ms-tag">A · New Task Arrival</div>
+          <div class="ms-title">Task Vector Computation</div>
+          <div class="ms-desc">
+            For each incoming expert checkpoint, a task vector is computed as the difference between the
+            fine-tuned expert and the pretrained base model, capturing all adaptation information.
+          </div>
+        </div>
+        <div class="ms">
+          <div class="ms-tag">B · Expert Admission</div>
+          <div class="ms-title">Core &amp; Residual Split</div>
+          <div class="ms-desc">
+            Update directions that agree in sign with the accumulated shared state are admitted into the
+            global core. Disagreeing or skill-specific directions are routed to a local residual,
+            which is then compressed via truncated SVD into compact low-rank factors.
+          </div>
+        </div>
+        <div class="ms">
+          <div class="ms-tag">C · Merge State</div>
+          <div class="ms-title">Compact Storage</div>
+          <div class="ms-desc">
+            The final merge state stores one shared global core plus a small pair of low-rank matrices
+            per admitted skill. The original expert checkpoint is discarded after admission,
+            keeping storage well below the full expert bank.
+          </div>
+        </div>
+        <div class="ms">
+          <div class="ms-tag">D · Inference</div>
+          <div class="ms-title">Skill Instantiation</div>
+          <div class="ms-desc">
+            At test time, the target skill is instantiated by combining the pretrained base,
+            the final global core, and the skill's local residual. When no explicit task ID
+            is available, a lightweight text-embedding similarity router selects the correct residual.
+          </div>
+        </div>
+      </div>
+
+      <!-- Figure 2 (paper figure) — full width -->
+      <div class="method-fig" style="border-right:none;">
+        <!-- Figure 2 (paper figure) — full width -->
+        <div class="img-shadow">
+          <img
+            src="static/images/fig2_pipeline.png"
+            alt="CARVE pipeline overview"
+            style="display:block;width:100%;height:auto;"
+          />
+        </div>
+      </div>
+
+      <!-- 1행 3열 설명 텍스트 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:1px solid var(--border);">
+
+        <div style="padding:24px 22px;border-right:1px solid var(--border);">
+          <div class="md-label">Global Core</div>
+          <div class="md-text">
+            The global core accumulates update directions that are consistently agreed upon across
+            all admitted experts. Using a coordinate-wise sign-concordance rule with a decreasing
+            update rate, it captures shared adaptation structure without overwriting skill-specific behavior.
+            Because the final core is used at inference for all skills, later experts can contribute
+            reusable improvements that benefit earlier skills — enabling positive backward transfer.
+          </div>
+        </div>
+
+        <div style="padding:24px 22px;border-right:1px solid var(--border);">
+          <div class="md-label">Skill-Local Spectral Residuals</div>
+          <div class="md-text">
+            The portion of each task vector not absorbed by the global core is compressed using
+            truncated singular value decomposition and stored as two compact low-rank factor matrices.
+            By the Eckart–Young–Mirsky theorem, this representation is optimal under a fixed rank budget.
+            The rank parameter directly controls the storage-versus-fidelity trade-off,
+            with most performance gains saturating by rank 64.
+          </div>
+        </div>
+
+        <div style="padding:24px 22px;">
+          <div class="md-label">Why This Decomposition?</div>
+          <div class="md-text">
+            Unlike compressing each expert independently, CARVE computes residuals relative to the
+            evolving shared core. This means skill-local corrections only need to encode what is
+            genuinely task-specific, substantially reducing the residual energy that must be stored
+            per skill and widening the storage advantage as more experts are admitted.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Storage complexity row -->
+      <div class="method-storage">
+        <div class="mst">
+          <div class="mst-name">Single Global Merge</div>
+          <div class="mst-cplx">O(P)</div>
+          <div class="mst-note" style="color:var(--red);">✗ No skill-specific correction</div>
+        </div>
+        <div class="mst hi">
+          <div class="mst-name">CARVE (Ours)</div>
+          <div class="mst-cplx">O(P) + O(Σ r·(m+n))</div>
+          <div class="mst-note" style="color:var(--green);">✓ Skill-specific · Data-free · Online</div>
+        </div>
+        <div class="mst">
+          <div class="mst-name">Full Expert Bank</div>
+          <div class="mst-cplx">O(T · P)</div>
+          <div class="mst-note" style="color:var(--green);">✓ Skill-specific — but grows linearly</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── RESULTS ─── -->
+<section id="results">
+  <div class="sec">
+    <div class="sec-tag">Experiments</div>
+    <h2 class="sec-h">Quantitative Results</h2>
+    <p class="sec-lead">
+      Evaluated on continual LIBERO expert streams across three VLA backbones.
+      CARVE consistently outperforms all compact merging baselines and approaches full expert bank performance.
+    </p>
+
+    <!-- Result figures: paper images only, no hand-coded tables -->
+    <div class="results-figs rv">
+
+      <!-- Main Results (Image 4) -->
+      <div>
+        <p style="font-size:.75rem;font-weight:700;color:var(--text-s);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">
+          Main Results on Continual VLA Expert Merging (LIBERO)
+        </p>
+        <div class="img-shadow">
+          <img
+            src="static/images/table2_main_results.png"
+            alt="Main results on continual VLA expert merging"
+            style="display:block;width:100%;height:auto;"
+          />
+        </div>
+      </div>
+    
+      <!-- Skill Preservation (Image 5) -->
+      <div>
+        <p style="font-size:.75rem;font-weight:700;color:var(--text-s);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">
+          Continual Skill Preservation &amp; Stability–Plasticity Trade-off
+        </p>
+        <div class="img-shadow">
+          <img
+            src="static/images/fig3_skill_preservation.png"
+            alt="Skill preservation and stability-plasticity trade-off"
+            style="display:block;width:100%;height:auto;"
+          />
+        </div>
+      </div>
+    
+      <!-- LIBERO-Plus (Image 6 + 7) -->
+      <!-- <div>
+        <p style="font-size:.75rem;font-weight:700;color:var(--text-s);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">
+          Robustness-aware Results on LIBERO-Plus
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div style="border-radius:var(--r);overflow:hidden;">
+            <img
+              src="static/images/table3_liberoplus.png"
+              alt="LIBERO-Plus results"
+              style="display:block;width:100%;height:auto;"
+            />
+          </div>
+          <div style="border-radius:var(--r);overflow:hidden;">
+            <img
+              src="static/images/fig4_radar.png"
+              alt="Robustness-aware merging performance radar"
+              style="display:block;width:100%;height:auto;"
+            />
+          </div>
+        </div>
+      </div> -->
+    
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── BASELINE COMPARISON (qualitative) ─── -->
+<section id="comparison" class="comp-section">
+  <div class="comp-inner">
+    <div class="sec-tag">Qualitative Results</div>
+    <h2 class="sec-h">Baseline Comparison — LIBERO Task Suites</h2>
+    <p style="color:var(--text-m);max-width:660px;margin-top:10px;font-size:.97rem;line-height:1.75;">
+      Across all four LIBERO task suites, CARVE (green border) successfully executes the manipulation task
+      while compact merging baselines fail. Each cell shows the robot's final state after a rollout.
+    </p>
+
+    <!-- Legend -->
+    <div style="display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--text-m);">
+        <span style="width:16px;height:16px;border:2px solid var(--border2);border-radius:4px;display:inline-block;background:var(--bg2);"></span>
+        Baseline method
+      </span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--green);font-weight:700;">
+        <span style="width:16px;height:16px;border:3px solid var(--green);border-radius:4px;display:inline-block;background:var(--green-l);"></span>
+        CARVE (Ours)
+      </span>
+    </div>
+
+    <!-- 2×2 suite grid -->
+    <div class="suite-grid rv">
+
+      <!-- LIBERO-Spatial -->
+      <div>
+        <div class="suite-title">LIBERO-Spatial</div>
+        <div class="method-cols">
+          <div>
+            <div class="col-label">Task Arithmetic</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/spatial_ta.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">spatial_ta.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label">TSV-Mask</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/spatial_tsv.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">spatial_tsv.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label ours">CARVE (Ours)</div>
+            <div class="vid-frame ours-f">
+              <!-- <video autoplay loop muted playsinline src="static/videos/spatial_carve.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs" style="border-color:rgba(46,125,90,.4);color:var(--green);">▶</div>
+                <span class="vf-fname">spatial_carve.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-ok">✓ 77.2% SR</div>
+          </div>
+        </div>
+        <div class="task-cap">"Pick up the black bowl next to the cookie box and place it on the plate"</div>
+      </div>
+
+      <!-- LIBERO-Object -->
+      <div>
+        <div class="suite-title">LIBERO-Object</div>
+        <div class="method-cols">
+          <div>
+            <div class="col-label">Task Arithmetic</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/object_ta.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">object_ta.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label">TSV-Mask</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/object_tsv.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">object_tsv.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label ours">CARVE (Ours)</div>
+            <div class="vid-frame ours-f">
+              <!-- <video autoplay loop muted playsinline src="static/videos/object_carve.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs" style="border-color:rgba(46,125,90,.4);color:var(--green);">▶</div>
+                <span class="vf-fname">object_carve.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-ok">✓ 88.5% SR</div>
+          </div>
+        </div>
+        <div class="task-cap">"Pick up the ketchup and place it in the basket"</div>
+      </div>
+
+      <!-- LIBERO-Goal -->
+      <div>
+        <div class="suite-title">LIBERO-Goal</div>
+        <div class="method-cols">
+          <div>
+            <div class="col-label">Task Arithmetic</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/goal_ta.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">goal_ta.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label">TSV-Mask</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/goal_tsv.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">goal_tsv.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label ours">CARVE (Ours)</div>
+            <div class="vid-frame ours-f">
+              <!-- <video autoplay loop muted playsinline src="static/videos/goal_carve.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs" style="border-color:rgba(46,125,90,.4);color:var(--green);">▶</div>
+                <span class="vf-fname">goal_carve.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-ok">✓ 76.4% SR</div>
+          </div>
+        </div>
+        <div class="task-cap">"Open the middle drawer of the cabinet"</div>
+      </div>
+
+      <!-- LIBERO-Long -->
+      <div>
+        <div class="suite-title">LIBERO-Long</div>
+        <div class="method-cols">
+          <div>
+            <div class="col-label">Task Arithmetic</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/long_ta.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">long_ta.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label">TSV-Mask</div>
+            <div class="vid-frame">
+              <!-- <video autoplay loop muted playsinline src="static/videos/long_tsv.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs">▶</div>
+                <span class="vf-fname">long_tsv.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-fail">✗ Failed</div>
+          </div>
+          <div>
+            <div class="col-label ours">CARVE (Ours)</div>
+            <div class="vid-frame ours-f">
+              <!-- <video autoplay loop muted playsinline src="static/videos/long_carve.mp4"></video> -->
+              <div class="vf-ph">
+                <div class="play-xs" style="border-color:rgba(46,125,90,.4);color:var(--green);">▶</div>
+                <span class="vf-fname">long_carve.mp4</span>
+              </div>
+            </div>
+            <div class="result-tag rt-ok">✓ 50.4% SR</div>
+          </div>
+        </div>
+        <div class="task-cap">"Put both the alphabet soup and the tomato sauce in the basket"</div>
+      </div>
+
+    </div><!-- /suite-grid -->
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── BENCHMARK VIDEOS ─── -->
+<section id="benchmark" style="background:var(--sky-ll);padding:68px 24px;">
+    <div style="max-width:1080px;margin:0 auto;">
+      <div class="sec-tag">Robustness Evaluation</div>
+      <h2 class="sec-h">LIBERO-Plus Demonstrations</h2>
+      <p style="color:var(--text-m);max-width:680px;margin-top:10px;font-size:.97rem;line-height:1.75;">
+        CARVE is evaluated on LIBERO-Plus, which extends LIBERO with seven structured perturbations
+        covering visual appearance, lighting, object placement, and scene dynamics.
+        Below: one original rollout and seven perturbation variants, all instantiated from the same compact merge state.
+      </p>
+  
+      <!-- 8개 영상: 2행 4열 균등 배치 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px;" class="rv">
+
+        <!-- 0. Original -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_original.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">liberoplus_original.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Original</div>
+            <div class="bench-task">Standard rollout without perturbation</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-green">CARVE</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 1. Object Layout -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_object_layout.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">object_layout.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 1</div>
+            <div class="bench-task">Object Layout</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">Confounding objects & displacement</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 2. Camera Viewpoints -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_camera.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">camera_viewpoints.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 2</div>
+            <div class="bench-task">Camera Viewpoints</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">Position, orientation & FoV</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 3. Robot Initial States -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_robot_states.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">robot_states.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 3</div>
+            <div class="bench-task">Robot Initial States</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">Manipulator pose variations</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 4. Language Instructions -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_language.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">language_instructions.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 4</div>
+            <div class="bench-task">Language Instructions</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">LLM-based instruction rewriting</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 5. Lighting Conditions -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_lighting.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">lighting_conditions.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 5</div>
+            <div class="bench-task">Lighting Conditions</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">Intensity, color & shadow</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 6. Background Textures -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_background.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">background_textures.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 6</div>
+            <div class="bench-task">Background Textures</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">Scene & surface appearance</span>
+            </div>
+          </div>
+        </div>
+  
+        <!-- 7. Sensor Noise -->
+        <div class="bench-card">
+          <div class="bench-screen">
+            <!-- <video autoplay loop muted playsinline src="static/videos/liberoplus_sensor.mp4"></video> -->
+            <div class="bench-ph">
+              <div class="play-m">▶</div>
+              <span style="font-size:.68rem;color:var(--border2);font-family:monospace;">sensor_noise.mp4</span>
+            </div>
+          </div>
+          <div class="bench-info">
+            <div class="bench-suite">Perturbation 7</div>
+            <div class="bench-task">Sensor Noise</div>
+            <div class="bench-tags">
+              <span class="bench-tag bt-sky">Photometric distortion & degradation</span>
+            </div>
+          </div>
+        </div>
+  
+      </div>
+  
+        </div>
+      </div>
+  
+    </div>
+  </section>
+
+<div class="divider"></div>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="foot-logo">CARVE</div>
+  <p>
+    NeurIPS 2026 &nbsp;·&nbsp; Anonymous Submission &nbsp;·&nbsp;
+    Template inspired by <a href="https://nerfies.github.io">Nerfies</a> and
+    <a href="https://github.com/eliahuhorwitz/Academic-project-page-template">Academic Project Page Template</a>
+  </p>
+  <p style="margin-top:5px;">
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
+  </p>
+</footer>
+
+<script>
+  function copyBib() {
+    navigator.clipboard.writeText(document.getElementById('bib-txt').innerText).then(() => {
+      const b = document.querySelector('.copy-btn');
+      b.textContent = 'Copied!';
+      setTimeout(() => b.textContent = 'Copy', 2000);
+    });
+  }
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+  }, { threshold: 0.06 });
+  document.querySelectorAll('.rv').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
+
+

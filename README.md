@@ -17,6 +17,46 @@ CARVE integrates sequentially arriving task-specific VLA experts without joint r
 
 ---
 
+## Quick Start
+
+### 0. Prerequisites
+
+- Working OpenVLA / VLA-Adapter / MergeVLA repository
+- LIBERO benchmark installed and importable
+- HuggingFace cache populated with base and expert models (see [Expert Models](#expert-models))
+- A GPU with ≥40 GB memory for merging, ≥24 GB for evaluation
+
+### 1. Install
+
+```bash
+git clone https://github.com/anonymousprojectpage2/CARVE.git
+cd CARVE
+conda create -n carve python=3.10 -y
+conda activate carve
+pip install -r requirements.txt
+
+# Install LIBERO
+git clone https://github.com/Lifelong-Robot-Learning/LIBERO.git
+cd LIBERO && pip install -e . && cd ..
+```
+
+### 2. Admit (build a merge state)
+
+T=4 LIBERO experts at rank 64 (the main paper setting):
+
+```bash
+bash bash_scripts/continual_merge_libero.sh OpenVLA
+```
+
+### 3. Evaluate
+
+```bash
+CKPT=./kj/continual_merged_models/OpenVLA/LIBERO/order_spatial_object_goal_10/step_4
+# See Evaluation section for per-backbone instructions
+```
+
+---
+
 ## Repository Structure
 
 ```
@@ -27,7 +67,7 @@ CARVE/
 │   └── finetune_libero_plus.sh          # Fine-tuning on LIBERO-Plus
 ├── experiments/robot/          # Evaluation scripts
 │   └── libero/
-│       └── run_libero_eval.py           # LIBERO evaluation
+│       └── run_libero_eval.py           # LIBERO evaluation (MergeVLA backbone)
 ├── model_merging/              # Core CARVE merging code
 │   ├── continual_mergy.py               # Continual merging for OpenVLA / VLA-Adapter
 │   └── continual_mergy_MergeVLA.py      # Continual merging for MergeVLA
@@ -76,10 +116,10 @@ CARVE uses publicly released task-specific experts. Download them from HuggingFa
 | VLA-Adapter-Pro | Object | `VLA-Adapter/LIBERO-Object-Pro` |
 | VLA-Adapter-Pro | Goal | `VLA-Adapter/LIBERO-Goal-Pro` |
 | VLA-Adapter-Pro | Long | `VLA-Adapter/LIBERO-Long-Pro` |
-| MergeVLA | Spatial | `[local path]` |
-| MergeVLA | Object | `[local path]` |
-| MergeVLA | Goal | `[local path]` |
-| MergeVLA | Long | `[local path]` |
+| MergeVLA | Spatial | Available via [MergeVLA repository](https://github.com/MergeVLA/MergeVLA) |
+| MergeVLA | Object | Available via [MergeVLA repository](https://github.com/MergeVLA/MergeVLA) |
+| MergeVLA | Goal | Available via [MergeVLA repository](https://github.com/MergeVLA/MergeVLA) |
+| MergeVLA | Long | Available via [MergeVLA repository](https://github.com/MergeVLA/MergeVLA) |
 
 Pretrained base models:
 
@@ -93,7 +133,7 @@ Pretrained base models:
 
 ## LIBERO-Plus Expert Fine-tuning
 
-For LIBERO-Plus experiments, we fine-tune LIBERO experts further on LIBERO-Plus data using LoRA.
+For LIBERO-Plus experiments, we fine-tune LIBERO experts further on LIBERO-Plus data using LoRA (rank=64, lr=2e-4, batch size=8, 10k steps).
 
 **Step 1: Download LIBERO-Plus dataset**
 
@@ -109,7 +149,7 @@ snapshot_download(
 "
 ```
 
-**Step 2: Run fine-tuning (MergeVLA experts)**
+**Step 2: Run fine-tuning**
 
 Edit `bash_scripts/finetune_libero_plus.sh` to set:
 - `MODEL_TYPE`: `MergeVLA` / `OpenVLA` / `VLAAdapter`
@@ -117,17 +157,16 @@ Edit `bash_scripts/finetune_libero_plus.sh` to set:
 ```bash
 bash bash_scripts/finetune_libero_plus.sh
 ```
+
 ---
 
 ## Continual Merging
 
 ### CARVE on LIBERO
 
-Edit `bash_scripts/continual_merge_libero.sh` to set:
-- `MODEL_TYPE`: `MergeVLA` / `OpenVLA` / `VLAAdapter`
+Pass the model type as an argument:
 
 ```bash
-# Run continual merging
 bash bash_scripts/continual_merge_libero.sh MergeVLA
 bash bash_scripts/continual_merge_libero.sh OpenVLA
 bash bash_scripts/continual_merge_libero.sh VLAAdapter
@@ -141,25 +180,35 @@ bash bash_scripts/continual_merge_libero_plus.sh OpenVLA
 bash bash_scripts/continual_merge_libero_plus.sh VLAAdapter
 ```
 
-
 ### Merge State
 
 After merging, checkpoints are saved under `SAVE_DIR/order_{task_order}/`:
 
 ```
 order_spatial_object_goal_10/
-├── step_1/    # After admitting spatial expert
-├── step_2/    # After admitting object expert
-├── step_3/    # After admitting goal expert
-├── step_4/    # After admitting long expert
+├── step_1/              # After admitting spatial expert
+├── step_2/              # After admitting object expert
+├── step_3/              # After admitting goal expert
+├── step_4/              # After admitting long expert
 └── continual_state.pt   # Resumable merge state
 ```
 
 ---
 
-## Evaluation
+## Storage Cost (OpenVLA-7B, T=4 LIBERO, rank=64)
 
-### LIBERO Evaluation
+| Component | Size |
+|-----------|------|
+| Pretrained OpenVLA-7B (frozen, shared) | 7.54 B |
+| Shared core delta (τ_core) | 7.54 B |
+| Per-task residuals (T=4 combined) | 0.87 B |
+| **Effective state for 4 tasks** | **15.95 B** |
+| Naive (4 independent copies) | 30.16 B |
+| **Saving vs. naive** | **47%** |
+
+---
+
+## Evaluation
 
 Each VLA backbone has its own evaluation codebase. We recommend cloning the corresponding repository and running evaluation from within that environment.
 
@@ -184,7 +233,7 @@ for task in libero_spatial libero_object libero_goal libero_10; do
         --pretrained_checkpoint $CKPT \
         --task_suite_name $task \
         --num_trials_per_task 50 \
-        --center_crop True \
+        --center_crop True
 done
 ```
 
@@ -207,7 +256,7 @@ for task in libero_spatial libero_object libero_goal libero_10; do
     python experiments/robot/libero/run_libero_eval.py \
         --pretrained_checkpoint $CKPT \
         --task_suite_name $task \
-        --num_trials_per_task 50 \
+        --num_trials_per_task 50
 done
 ```
 
@@ -235,8 +284,11 @@ for task in libero_spatial libero_object libero_goal libero_10; do
         --pretrained_vlm_checkpoint /path/to/MergeVLA/pretrained_models/Pretrained-VLM \
         --k_gate 8 \
         --action_head_layer_num 1 \
-        --num_trials_per_task 50 \
+        --num_trials_per_task 50
 done
 ```
 
----
+
+## License
+
+Apache 2.0. See `LICENSE`.

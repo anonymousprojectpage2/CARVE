@@ -1,0 +1,18 @@
+# CARVE default configuration
+
+admit:
+  gamma: 1.0
+  alpha_mode: inv_sqrt        # alpha = 1 / sqrt(arrival_step)
+  scope: per_block             # sign-protection scope: global | per_block | per_key
+  rank_max: 64
+  rank_adaptive_threshold: 0.0
+  min_factorise_numel: 4096    # tensors smaller than this kept as bf16 (no SVD)
+  use_beta: 1                  # scale tau_core by beta at overlay time
+
+routing:
+  k_default: 2                 # default top-K experts to mix
+  key_dim: 256                 # routing-key dimensionality
+
+eval:
+  num_trials_per_task: 10
+  center_crop: true

@@ -1,0 +1,19 @@
+# CARVE — runtime dependencies
+torch>=2.2.0
+torchvision
+transformers>=4.40.0
+safetensors>=0.4.0
+accelerate>=0.30.0
+einops
+numpy
+tqdm
+pyyaml
+draccus
+
+# LIBERO benchmark stack
+robosuite>=1.4.0
+imageio
+
+# Optional: probing utilities
+scikit-learn
+scipy
